@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI 감정 일기 - 오늘의 마음 기록과 따뜻한 AI 공감 분석 서비스">
+  <title>AI 감정 일기</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <main class="diary-card">
+      <!-- Header Title Section -->
+      <header class="header">
+        <h1>오늘의 하루는 어땠나요?</h1>
+        <p>오늘 있었던 일이나 마음에 머문 감정들을 자유롭게 적어보세요.</p>
+      </header>
+
+      <!-- Main Input & Interaction Section -->
+      <section class="diary-form">
+        <div class="input-group">
+          <textarea 
+            id="diary-textarea" 
+            class="diary-textarea" 
+            placeholder="여기에 오늘 하루 있었던 일이나 느꼈던 감정을 적어주세요. 마이크 버튼을 눌러 말로 편리하게 입력할 수도 있습니다..."
+            spellcheck="false"
+          ></textarea>
+          <div class="textarea-hint">자유로운 형식으로 마음 편히 남겨주세요.</div>
+        </div>
+
+        <!-- Buttons Row -->
+        <div class="button-row">
+          <button id="btn-voice" class="btn btn-voice" title="음성으로 일기 작성하기">
+            <!-- Mic Icon -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" x2="12" y1="19" y2="22"/>
+            </svg>
+            <span>음성으로 입력하기</span>
+          </button>
+          
+          <button id="btn-analysis" class="btn btn-analysis" title="감정 분석 요청하기">
+            <!-- Sparkles/Analyze Icon -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+            </svg>
+            <span>분석 요청하기</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- AI Response Section -->
+      <section class="ai-section">
+        <div class="ai-subtitle-group">
+          <!-- Sparkle subtitle icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+          </svg>
+          <h2 class="ai-subtitle">AI의 답변</h2>
+        </div>
+        <div id="ai-response-box" class="ai-response-box">
+          <div id="ai-response-text" class="ai-response-text">여기에 AI의 답변이 표시됩니다.</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
