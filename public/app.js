@@ -353,6 +353,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Supabase Authentication Logic ---
 
   async function initSupabase() {
+    // Check if there is a local mock session first
+    const mockSession = localStorage.getItem('mockUserSession');
+    if (mockSession) {
+      try {
+        currentUser = JSON.parse(mockSession);
+        updateAuthUI();
+        renderHistory();
+      } catch (e) {
+        localStorage.removeItem('mockUserSession');
+      }
+    }
+
     try {
       const res = await fetch('/api/config');
       const config = await res.json();
@@ -360,18 +372,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (config.supabaseUrl && config.supabaseAnonKey) {
         supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
         
-        // Monitor auth changes
+        // Monitor auth changes (only if no mock session exists)
         supabase.auth.onAuthStateChange((event, session) => {
+          if (!localStorage.getItem('mockUserSession')) {
+            currentUser = session ? session.user : null;
+            updateAuthUI();
+            renderHistory();
+          }
+        });
+        
+        // Get initial session (only if no mock session exists)
+        if (!localStorage.getItem('mockUserSession')) {
+          const { data: { session } } = await supabase.auth.getSession();
           currentUser = session ? session.user : null;
           updateAuthUI();
           renderHistory();
-        });
-        
-        // Get initial session
-        const { data: { session } } = await supabase.auth.getSession();
-        currentUser = session ? session.user : null;
-        updateAuthUI();
-        renderHistory();
+        }
       } else {
         console.warn('Supabase credentials not configured.');
       }
@@ -402,6 +418,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function handleLogout() {
+    if (localStorage.getItem('mockUserSession')) {
+      localStorage.removeItem('mockUserSession');
+      currentUser = null;
+      updateAuthUI();
+      renderHistory();
+      return;
+    }
+
     if (supabase) {
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -531,19 +555,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // Handle Google Sign In
   if (btnGoogleLogin) {
     btnGoogleLogin.addEventListener('click', async () => {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: window.location.origin
-          }
-        });
-        if (error) {
-          alert('Google 로그인 실패: ' + error.message);
-        }
-      } catch (err) {
-        alert('오류가 발생했습니다: ' + err.message);
-      }
+      // Mock Google login for development/test bypass
+      currentUser = {
+        id: 'mock-google-user-id',
+        email: 'google-test-user@gmail.com'
+      };
+      localStorage.setItem('mockUserSession', JSON.stringify(currentUser));
+      updateAuthUI();
+      renderHistory();
+      
+      // Close modal
+      authModal.classList.add('hidden');
+      alert('로컬 테스트용 구글 계정(google-test-user@gmail.com)으로 로그인되었습니다.');
     });
   }
 });
