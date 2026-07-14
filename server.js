@@ -17,6 +17,14 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+// Route to expose public Supabase config to client
+app.get('/api/config', (req, res) => {
+  res.json({
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  });
+});
+
 // API route for diary emotion analysis
 app.post('/api/analyze', async (req, res) => {
   try {

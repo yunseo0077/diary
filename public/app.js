@@ -5,9 +5,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const aiResponseBox = document.getElementById('ai-response-box');
   const aiResponseText = document.getElementById('ai-response-text');
   const historyContainer = document.getElementById('history-container');
+  const authStatusContainer = document.getElementById('auth-status-container');
+  const authModal = document.getElementById('auth-modal');
+  const btnCloseAuth = document.getElementById('btn-close-auth');
+  const tabLogin = document.getElementById('tab-login');
+  const tabSignup = document.getElementById('tab-signup');
+  const formLogin = document.getElementById('form-login');
+  const formSignup = document.getElementById('form-signup');
+  const btnGoogleLogin = document.getElementById('btn-google-login');
 
   let recognition = null;
   let isRecording = false;
+  let supabase = null;
+  let currentUser = null;
 
   // Load saved content from localStorage if it exists
   const savedDiary = localStorage.getItem('diaryContent');
@@ -27,7 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderHistory() {
     if (!historyContainer) return;
     
-    const history = JSON.parse(localStorage.getItem('diaryHistory') || '[]');
+    const historyKey = currentUser ? `diaryHistory_${currentUser.id}` : 'diaryHistory';
+    const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
     
     // Sort by latest first (descending timestamp/id)
     const sortedHistory = [...history].sort((a, b) => b.id - a.id);
@@ -92,9 +103,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Delete a history entry
   window.deleteHistoryEntry = (id) => {
     if (confirm('이 일기 기록을 삭제하시겠습니까?')) {
-      const history = JSON.parse(localStorage.getItem('diaryHistory') || '[]');
+      const historyKey = currentUser ? `diaryHistory_${currentUser.id}` : 'diaryHistory';
+      const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
       const updatedHistory = history.filter(entry => entry.id !== id);
-      localStorage.setItem('diaryHistory', JSON.stringify(updatedHistory));
+      localStorage.setItem(historyKey, JSON.stringify(updatedHistory));
       renderHistory();
     }
   };
@@ -307,7 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('aiResponse', data.result);
 
         // Save to diaryHistory
-        const history = JSON.parse(localStorage.getItem('diaryHistory') || '[]');
+        const historyKey = currentUser ? `diaryHistory_${currentUser.id}` : 'diaryHistory';
+        const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
         history.push({
           id: Date.now(),
           date: new Date().toLocaleString('ko-KR', {
@@ -321,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
           content: content,
           aiResponse: data.result
         });
-        localStorage.setItem('diaryHistory', JSON.stringify(history));
+        localStorage.setItem(historyKey, JSON.stringify(history));
         
         // Rerender history list
         renderHistory();
@@ -333,4 +346,204 @@ document.addEventListener('DOMContentLoaded', () => {
       aiResponseText.innerHTML = `<span style="color: #f87171; font-weight: 500;">⚠️ 네트워크 연결 실패</span><br><br>서버와 연결을 설정할 수 없습니다. 터미널에서 백엔드 서버가 올바르게 실행 중인지 확인해 주세요.`;
     }
   });
+
+  // Initialize Supabase Auth connection
+  initSupabase();
+
+  // --- Supabase Authentication Logic ---
+
+  async function initSupabase() {
+    try {
+      const res = await fetch('/api/config');
+      const config = await res.json();
+      
+      if (config.supabaseUrl && config.supabaseAnonKey) {
+        supabase = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+        
+        // Monitor auth changes
+        supabase.auth.onAuthStateChange((event, session) => {
+          currentUser = session ? session.user : null;
+          updateAuthUI();
+          renderHistory();
+        });
+        
+        // Get initial session
+        const { data: { session } } = await supabase.auth.getSession();
+        currentUser = session ? session.user : null;
+        updateAuthUI();
+        renderHistory();
+      } else {
+        console.warn('Supabase credentials not configured.');
+      }
+    } catch (err) {
+      console.error('Failed to init Supabase:', err);
+    }
+  }
+
+  function updateAuthUI() {
+    if (!authStatusContainer) return;
+    
+    if (currentUser) {
+      // Logged in state
+      const emailFirst = currentUser.email.charAt(0).toUpperCase();
+      authStatusContainer.innerHTML = `
+        <div class="user-badge" title="${currentUser.email}">
+          <div class="user-avatar">${emailFirst}</div>
+          <span class="user-email">${currentUser.email}</span>
+        </div>
+        <button id="btn-logout" class="btn-logout">로그아웃</button>
+      `;
+    } else {
+      // Logged out state
+      authStatusContainer.innerHTML = `
+        <button id="btn-open-auth" class="btn btn-auth-trigger">로그인 / 회원가입</button>
+      `;
+    }
+  }
+
+  async function handleLogout() {
+    if (supabase) {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        alert('로그아웃 중 오류가 발생했습니다: ' + error.message);
+      }
+    }
+  }
+
+  // Handle Dynamic Auth Header Actions (Delegation)
+  if (authStatusContainer) {
+    authStatusContainer.addEventListener('click', (e) => {
+      if (e.target.id === 'btn-open-auth' || e.target.closest('#btn-open-auth')) {
+        authModal.classList.remove('hidden');
+      } else if (e.target.id === 'btn-logout' || e.target.closest('#btn-logout')) {
+        handleLogout();
+      }
+    });
+  }
+
+  // Toggle Modal
+  if (btnCloseAuth) {
+    btnCloseAuth.addEventListener('click', () => {
+      authModal.classList.add('hidden');
+    });
+  }
+  
+  if (authModal) {
+    authModal.addEventListener('click', (e) => {
+      if (e.target === authModal) {
+        authModal.classList.add('hidden');
+      }
+    });
+  }
+
+  // Switch Tabs
+  if (tabLogin && tabSignup) {
+    tabLogin.addEventListener('click', () => {
+      tabLogin.classList.add('active');
+      tabSignup.classList.remove('active');
+      formLogin.classList.remove('hidden');
+      formSignup.classList.add('hidden');
+    });
+    
+    tabSignup.addEventListener('click', () => {
+      tabSignup.classList.add('active');
+      tabLogin.classList.remove('active');
+      formSignup.classList.remove('hidden');
+      formLogin.classList.add('hidden');
+    });
+  }
+
+  // Handle Email Sign Up
+  if (formSignup) {
+    formSignup.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const confirmPassword = document.getElementById('signup-confirm-password').value;
+      
+      if (password.length < 6) {
+        alert('비밀번호는 최소 6자 이상이어야 합니다.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        alert('비밀번호가 일치하지 않습니다.');
+        return;
+      }
+      
+      const submitBtn = formSignup.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '가입 중...';
+      
+      try {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password
+        });
+        
+        if (error) {
+          alert('회원가입 실패: ' + error.message);
+        } else {
+          alert('회원가입이 완료되었습니다. 이메일 인증이 필요한 경우 메일함을 확인해 주세요.');
+          authModal.classList.add('hidden');
+          formSignup.reset();
+        }
+      } catch (err) {
+        alert('오류가 발생했습니다: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '회원가입';
+      }
+    });
+  }
+
+  // Handle Email Log In
+  if (formLogin) {
+    formLogin.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      
+      const submitBtn = formLogin.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = '로그인 중...';
+      
+      try {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (error) {
+          alert('로그인 실패: ' + error.message);
+        } else {
+          authModal.classList.add('hidden');
+          formLogin.reset();
+        }
+      } catch (err) {
+        alert('오류가 발생했습니다: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '로그인';
+      }
+    });
+  }
+
+  // Handle Google Sign In
+  if (btnGoogleLogin) {
+    btnGoogleLogin.addEventListener('click', async () => {
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+        if (error) {
+          alert('Google 로그인 실패: ' + error.message);
+        }
+      } catch (err) {
+        alert('오류가 발생했습니다: ' + err.message);
+      }
+    });
+  }
 });
